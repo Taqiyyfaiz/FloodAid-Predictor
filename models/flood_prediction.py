@@ -13,6 +13,7 @@ import random
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.weather_api import get_grid_weather_data, get_historical_rainfall
 from utils.geo_utils import create_grid, generate_elevation_data, calculate_flow_accumulation, calculate_flood_risk
+from utils.csv_data_manager import get_historical_data, save_flood_prediction, initialize_data_files
 from config.config import MODEL_PATH, DEFAULT_LATITUDE, DEFAULT_LONGITUDE
 
 class FloodPredictionModel:
@@ -22,10 +23,56 @@ class FloodPredictionModel:
         """Initialize the model."""
         self.model = None
         self.scaler = StandardScaler()
-        self.feature_cols = ['elevation', 'flow_acc', 'nearest_rainfall']
+        self.feature_cols = ['elevation', 'flow_accumulation', 'rainfall']
     
     def generate_training_data(self, center_lat=DEFAULT_LATITUDE, center_lon=DEFAULT_LONGITUDE, 
-                              grid_size=20, historical_days=30):
+                              grid_size=20, use_historical=True):
+        """
+        Generate training data for the model, optionally using historical data from CSV.
+        
+        Args:
+            center_lat (float): Center latitude
+            center_lon (float): Center longitude
+            grid_size (int): Grid size for spatial discretization
+            use_historical (bool): Whether to use historical data from CSV
+            
+        Returns:
+            tuple: X_train, X_test, y_train, y_test
+        """
+        if use_historical:
+            # Try to load historical data from CSV
+            try:
+                print("Loading historical data from CSV...")
+                df = get_historical_data()
+                
+                if len(df) < 100:  # If not enough data, generate synthetic data
+                    print("Not enough historical data, generating synthetic data...")
+                    return self._generate_synthetic_data(center_lat, center_lon, grid_size)
+                
+                # Use historical data
+                print(f"Using {len(df)} records of historical data for training")
+                X = df[self.feature_cols]
+                y = df['flood_observed']
+                
+                # Split into training and test sets
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                
+                # Normalize features
+                X_train = self.scaler.fit_transform(X_train)
+                X_test = self.scaler.transform(X_test)
+                
+                return X_train, X_test, y_train, y_test
+                
+            except Exception as e:
+                print(f"Error loading historical data: {str(e)}")
+                print("Falling back to synthetic data generation")
+                return self._generate_synthetic_data(center_lat, center_lon, grid_size)
+        else:
+            # Generate synthetic data
+            return self._generate_synthetic_data(center_lat, center_lon, grid_size)
+    
+    def _generate_synthetic_data(self, center_lat=DEFAULT_LATITUDE, center_lon=DEFAULT_LONGITUDE, 
+                               grid_size=20, historical_days=30):
         """
         Generate synthetic training data for the model.
         
@@ -38,6 +85,7 @@ class FloodPredictionModel:
         Returns:
             tuple: X_train, X_test, y_train, y_test
         """
+        print("Generating synthetic training data...")
         # Create a spatial grid
         grid = create_grid(center_lat, center_lon, grid_size, spacing=0.01)
         
@@ -58,12 +106,14 @@ class FloodPredictionModel:
         
         # Use the current data
         for _, row in risk_data.iterrows():
+            # Convert risk level to binary target (1 for high/severe, 0 for low/medium)
+            is_flood = 1 if row['risk_level'] in ['high', 'severe'] else 0
+            
             all_data.append({
                 'elevation': row['elevation'],
-                'norm_elev': row['norm_elev'],
-                'flow_acc': row['flow_acc'],
-                'nearest_rainfall': row['nearest_rainfall'],
-                'flood_risk': row['flood_risk']
+                'flow_accumulation': row['flow_acc'],
+                'rainfall': row['nearest_rainfall'],
+                'flood_observed': is_flood
             })
         
         # Simulate historical scenarios with different rainfall patterns
@@ -76,21 +126,19 @@ class FloodPredictionModel:
             rain_factor = random.uniform(0.2, 3.0)  # Random factor between 0.2 and 3.0
             synthetic_rainfall['rainfall'] = synthetic_rainfall['rainfall'] * rain_factor
             
-            # Vary the temperature randomly (can affect flooding)
-            temp_change = random.uniform(-5, 5)  # Random change between -5 and +5
-            synthetic_rainfall['temperature'] = synthetic_rainfall['temperature'] + temp_change
-            
             # Calculate flood risk for this historical scenario
             historical_risk = calculate_flood_risk(grid, synthetic_rainfall)
             
             # Add to training data
             for _, row in historical_risk.iterrows():
+                # Convert risk level to binary target
+                is_flood = 1 if row['risk_level'] in ['high', 'severe'] else 0
+                
                 all_data.append({
                     'elevation': row['elevation'],
-                    'norm_elev': row['norm_elev'],
-                    'flow_acc': row['flow_acc'],
-                    'nearest_rainfall': row['nearest_rainfall'],
-                    'flood_risk': row['flood_risk']
+                    'flow_accumulation': row['flow_acc'],
+                    'rainfall': row['nearest_rainfall'],
+                    'flood_observed': is_flood
                 })
         
         # Convert to DataFrame
@@ -98,7 +146,7 @@ class FloodPredictionModel:
         
         # Split data into features and target
         X = df[self.feature_cols]
-        y = df['flood_risk']
+        y = df['flood_observed']
         
         # Split into training and test sets
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -196,30 +244,34 @@ class FloodPredictionModel:
         # Create a copy to avoid modifying the original
         result = grid.copy()
         
-        # Find nearest rainfall values
-        rainfall_gdf = pd.DataFrame(rainfall_data)
-        rainfall_points = [Point(lon, lat) for lon, lat in zip(rainfall_data['longitude'], rainfall_data['latitude'])]
-        rainfall_gdf['geometry'] = rainfall_points
-        rainfall_gdf = gpd.GeoDataFrame(rainfall_gdf, crs="EPSG:4326")
+        # Prepare the features for prediction
+        features = pd.DataFrame({
+            'elevation': result['elevation'],
+            'flow_accumulation': result['flow_acc'],
+            'rainfall': result.apply(
+                lambda row: find_nearest_rainfall(row, rainfall_data),
+                axis=1
+            )
+        })
         
-        from utils.geo_utils import find_nearest_point
-        result['nearest_rainfall'] = result.apply(
-            lambda row: find_nearest_point(row.geometry, rainfall_gdf)['rainfall'],
-            axis=1
-        )
+        # Make predictions
+        result['predicted_risk'] = self.predict(features)
         
-        # Extract features for prediction
-        features = result[self.feature_cols]
-        
-        # Predict flood risk
-        result['flood_risk'] = self.predict(features)
-        
-        # Classify risk levels
+        # Convert to risk levels
         result['risk_level'] = pd.cut(
-            result['flood_risk'],
+            result['predicted_risk'],
             bins=[0, 0.25, 0.5, 0.75, 1.0],
             labels=['low', 'medium', 'high', 'severe']
         )
+        
+        # Save predictions to CSV
+        for _, row in result.iterrows():
+            save_flood_prediction({
+                'latitude': row['lat'],
+                'longitude': row['lon'],
+                'risk_level': row['risk_level'],
+                'risk_score': row['predicted_risk']
+            })
         
         return result
     
@@ -229,19 +281,24 @@ class FloodPredictionModel:
         
         Args:
             path (str): Path to save the model
+            
+        Returns:
+            bool: True if successful
         """
         if self.model is None:
-            raise ValueError("No trained model to save.")
+            raise ValueError("Model not trained yet.")
         
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(path), exist_ok=True)
         
-        # Save model
+        # Save the model and scaler
         joblib.dump({
             'model': self.model,
             'scaler': self.scaler,
             'feature_cols': self.feature_cols
         }, path)
+        
+        return True
     
     def load(self, path=MODEL_PATH):
         """
@@ -251,66 +308,88 @@ class FloodPredictionModel:
             path (str): Path to load the model from
             
         Returns:
-            self: Model instance with loaded model
+            self: Loaded model instance
         """
-        try:
-            data = joblib.load(path)
-            self.model = data['model']
-            self.scaler = data['scaler']
-            self.feature_cols = data['feature_cols']
-            return self
-        except (FileNotFoundError, KeyError) as e:
-            print(f"Error loading model: {e}")
-            return None
+        if not os.path.exists(path):
+            raise ValueError(f"Model file not found: {path}")
+        
+        # Load the model and scaler
+        data = joblib.load(path)
+        self.model = data['model']
+        self.scaler = data['scaler']
+        self.feature_cols = data['feature_cols']
+        
+        return self
 
-def train_model(save=True):
+def find_nearest_rainfall(point, rainfall_data):
+    """Find the nearest rainfall value for a point."""
+    distances = []
+    for _, row in rainfall_data.iterrows():
+        # Calculate Euclidean distance
+        dist = ((point['lat'] - row['latitude'])**2 + (point['lon'] - row['longitude'])**2)**0.5
+        distances.append((dist, row['rainfall']))
+    
+    # Sort by distance
+    distances.sort(key=lambda x: x[0])
+    
+    # Return the rainfall of the closest point
+    return distances[0][1] if distances else 0
+
+def train_model(save=True, use_historical=True):
     """
-    Train and save a new model.
+    Train the flood prediction model.
     
     Args:
-        save (bool): Whether to save the model
+        save (bool): Whether to save the model after training
+        use_historical (bool): Whether to use historical data
         
     Returns:
-        FloodPredictionModel: Trained model instance
+        tuple: Model and evaluation metrics
     """
+    # Ensure CSV data files are initialized
+    initialize_data_files()
+    
+    # Create and train the model
     model = FloodPredictionModel()
-    
-    # Generate training data
-    X_train, X_test, y_train, y_test = model.generate_training_data()
-    
-    # Train the model
+    X_train, X_test, y_train, y_test = model.generate_training_data(use_historical=use_historical)
     model.train(X_train, y_train)
     
-    # Evaluate
+    # Evaluate the model
     metrics = model.evaluate(X_test, y_test)
-    print(f"Model evaluation: MSE={metrics['mse']:.4f}, RMSE={metrics['rmse']:.4f}, R²={metrics['r2']:.4f}")
+    print(f"Model trained with metrics: {metrics}")
     
-    # Save if requested
+    # Save the model if requested
     if save:
         model.save()
-        print(f"Model saved to {MODEL_PATH}")
+        print(f"Model saved to: {MODEL_PATH}")
     
-    return model
+    return model, metrics
 
 def load_or_train_model():
     """
-    Load an existing model or train a new one if no saved model exists.
+    Load the model if it exists, otherwise train a new one.
     
     Returns:
-        FloodPredictionModel: Model instance
+        FloodPredictionModel: Loaded or trained model
     """
     model = FloodPredictionModel()
     
-    # Try to load the model
-    loaded_model = model.load()
+    try:
+        # Try to load the model
+        model.load()
+        print("Model loaded successfully.")
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        print("Training a new model...")
+        
+        # Train a new model
+        model, _ = train_model(save=True)
     
-    # If loading failed, train a new model
-    if loaded_model is None:
-        print("No saved model found, training a new one...")
-        return train_model(save=True)
-    
-    return loaded_model
+    return model
 
 if __name__ == "__main__":
-    # Train and save a model
-    train_model() 
+    model, metrics = train_model(save=True)
+    print(f"Model trained with metrics:")
+    print(f"MSE: {metrics['mse']:.4f}")
+    print(f"RMSE: {metrics['rmse']:.4f}")
+    print(f"R²: {metrics['r2']:.4f}") 

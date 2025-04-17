@@ -285,7 +285,7 @@ def calculate_route(start_lat, start_lon, end_lat, end_lon, flood_gdf=None, wayp
     
     return LineString(coords)
 
-def plot_flood_map(flood_gdf, center_lat, center_lon, zoom=12):
+def plot_flood_map(flood_gdf, center_lat, center_lon, zoom=12, historical_floods=None, villages=None):
     """
     Create a Folium map with flood risk visualization.
     
@@ -294,6 +294,8 @@ def plot_flood_map(flood_gdf, center_lat, center_lon, zoom=12):
         center_lat (float): Center latitude for the map
         center_lon (float): Center longitude for the map
         zoom (int): Initial zoom level
+        historical_floods (list, optional): List of dictionaries with historical flood data
+        villages (list, optional): List of dictionaries with village data
     
     Returns:
         folium.Map: Folium map object
@@ -320,15 +322,53 @@ def plot_flood_map(flood_gdf, center_lat, center_lon, zoom=12):
                 tooltip=f"Risk: {risk_level}<br>Score: {row['flood_risk']:.2f}"
             ).add_to(m)
     
+    # Add historical flood locations if provided
+    if historical_floods:
+        for flood in historical_floods:
+            # Create a custom icon for historical floods
+            folium.CircleMarker(
+                location=[flood['latitude'], flood['longitude']],
+                radius=10,
+                color='blue',
+                fill=True,
+                fill_color='blue',
+                fill_opacity=0.7,
+                tooltip=f"Historical Flood: {flood['year']}<br>Depth: {flood.get('depth', 'Unknown')} m"
+            ).add_to(m)
+    
+    # Add villages if provided
+    if villages:
+        for village in villages:
+            # Determine color based on risk level
+            if 'risk_level' in village:
+                if village['risk_level'].lower() in ['high', 'severe']:
+                    color = 'red'
+                else:
+                    color = 'green'
+            else:
+                color = 'blue'  # Default color
+            
+            # Create marker for village
+            folium.Marker(
+                location=[village['latitude'], village['longitude']],
+                tooltip=f"Village: {village['name']}<br>Risk Level: {village.get('risk_level', 'Unknown')}",
+                icon=folium.Icon(color=color, icon='home', prefix='fa')
+            ).add_to(m)
+    
     # Add legend
     legend_html = '''
     <div style="position: fixed; bottom: 50px; left: 50px; z-index: 1000; background-color: white; 
     padding: 10px; border: 2px solid grey; border-radius: 5px;">
-    <p><strong>Flood Risk Levels</strong></p>
-    <p><i class="fa fa-circle" style="color:{}"></i> Low</p>
-    <p><i class="fa fa-circle" style="color:{}"></i> Medium</p>
-    <p><i class="fa fa-circle" style="color:{}"></i> High</p>
-    <p><i class="fa fa-circle" style="color:{}"></i> Severe</p>
+    <p><strong>Map Legend</strong></p>
+    <p><i class="fa fa-circle" style="color:{}"></i> Low Risk</p>
+    <p><i class="fa fa-circle" style="color:{}"></i> Medium Risk</p>
+    <p><i class="fa fa-circle" style="color:{}"></i> High Risk</p>
+    <p><i class="fa fa-circle" style="color:{}"></i> Severe Risk</p>
+    <p><i class="fa fa-home" style="color:red"></i> High Risk Village</p>
+    <p><i class="fa fa-home" style="color:green"></i> Low Risk Village</p>
+    <p><i class="fa fa-hospital" style="color:green"></i> Aid Center</p>
+    <p><i class="fa fa-circle" style="color:blue"></i> Historical Flood</p>
+    <p style="border-top: 2px solid #ddd; margin-top: 5px; padding-top: 5px;"><span style="background-color:blue; height:3px; width:30px; display:inline-block;"></span> Route</p>
     </div>
     '''.format(
         FLOOD_COLORS['low'], 
@@ -341,7 +381,7 @@ def plot_flood_map(flood_gdf, center_lat, center_lon, zoom=12):
     
     return m
 
-def plot_routes(m, routes, aid_centers=None):
+def plot_routes(m, routes, aid_centers=None, villages=None, historical_floods=None):
     """
     Add routes to a Folium map.
     
@@ -349,10 +389,44 @@ def plot_routes(m, routes, aid_centers=None):
         m (folium.Map): Folium map object
         routes (list): List of route dictionaries with LineString geometries
         aid_centers (GeoDataFrame, optional): GeoDataFrame with aid center locations
+        villages (list, optional): List of dictionaries with village data
+        historical_floods (list, optional): List of dictionaries with historical flood data
     
     Returns:
         folium.Map: Updated Folium map object
     """
+    # Add historical flood locations if provided
+    if historical_floods:
+        for flood in historical_floods:
+            folium.CircleMarker(
+                location=[flood['latitude'], flood['longitude']],
+                radius=10,
+                color='blue',
+                fill=True,
+                fill_color='blue',
+                fill_opacity=0.7,
+                tooltip=f"Historical Flood: {flood['year']}<br>Depth: {flood.get('depth', 'Unknown')} m"
+            ).add_to(m)
+    
+    # Add villages if provided
+    if villages:
+        for village in villages:
+            # Determine color based on risk level
+            if 'risk_level' in village:
+                if village['risk_level'].lower() in ['high', 'severe']:
+                    color = 'red'
+                else:
+                    color = 'green'
+            else:
+                color = 'blue'  # Default color
+            
+            # Create marker for village
+            folium.Marker(
+                location=[village['latitude'], village['longitude']],
+                tooltip=f"Village: {village['name']}<br>Risk Level: {village.get('risk_level', 'Unknown')}",
+                icon=folium.Icon(color=color, icon='home', prefix='fa')
+            ).add_to(m)
+    
     # Add routes
     for i, route in enumerate(routes):
         # Check if route has a direct geometry or if it's structured with segments
@@ -362,7 +436,7 @@ def plot_routes(m, routes, aid_centers=None):
             risk_level = route.get('risk_level', 'low')
             
             # Get color based on risk level
-            color = FLOOD_COLORS.get(risk_level, '#3388ff')
+            color = 'blue'  # Use blue for routes
             
             # Plot the route
             folium.GeoJson(
@@ -382,7 +456,7 @@ def plot_routes(m, routes, aid_centers=None):
                     risk_level = segment.get('risk_level', route.get('risk_level', 'low'))
                     
                     # Get color based on risk level
-                    color = FLOOD_COLORS.get(risk_level, '#3388ff')
+                    color = 'blue'  # Use blue for routes
                     
                     # Plot the segment
                     folium.GeoJson(
@@ -394,6 +468,27 @@ def plot_routes(m, routes, aid_centers=None):
                         },
                         tooltip=f"Route {i+1} Segment {j+1}: {segment.get('distance', 0):.2f} km"
                     ).add_to(m)
+        elif 'aid_center' in route and 'affected_areas' in route:
+            # Handle newer route format
+            aid_center = route['aid_center']
+            for area in route['affected_areas']:
+                # Create a LineString for this route segment
+                start_lat, start_lon = aid_center['lat'], aid_center['lon']
+                end_lat, end_lon = area['lat'], area['lon']
+                
+                # Use calculate_route to get a LineString for this route
+                line = calculate_route(start_lat, start_lon, end_lat, end_lon)
+                
+                # Plot the route
+                folium.GeoJson(
+                    line,
+                    style_function=lambda x: {
+                        'color': 'blue',
+                        'weight': 4,
+                        'opacity': 0.8
+                    },
+                    tooltip=f"Route from {aid_center['name']} to area {area['id']}"
+                ).add_to(m)
     
     # Add aid centers
     if aid_centers is not None:

@@ -14,6 +14,8 @@ if OPENWEATHER_API_KEY == "DEMO_MODE":
 
 # Database settings
 DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "floodaid.db")
+# CSV data storage path
+CSV_DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "csv")
 
 # Model settings
 MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "flood_prediction_model.pkl")

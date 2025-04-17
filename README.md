@@ -16,12 +16,38 @@ FloodAid Predictor combines geospatial analysis, machine learning, and route opt
 
 ## Tech Stack
 
-- **Frontend**: Streamlit for interactive web interface and data visualization
-- **Data Processing**: Pandas, NumPy, GeoPandas for data manipulation and geospatial analysis
-- **Machine Learning**: Scikit-learn for flood prediction models
-- **Optimization**: Google OR-Tools for route optimization algorithms
-- **Visualization**: Folium for interactive maps, Matplotlib and Seaborn for data plotting
-- **Geospatial Processing**: Shapely for geometric operations, PyProj for coordinate transformations
+- **Frontend**: 
+  - [Streamlit](https://streamlit.io/) for interactive web interface and data visualization
+  - [Streamlit-Folium](https://github.com/randyzwitch/streamlit-folium) for embedding Folium maps in Streamlit
+
+- **Data Processing**: 
+  - [Pandas](https://pandas.pydata.org/) and [NumPy](https://numpy.org/) for data manipulation and numerical operations
+  - [GeoPandas](https://geopandas.org/) for geospatial data processing
+  - [SQLite3](https://www.sqlite.org/) for local database storage
+
+- **Geospatial Analysis**:
+  - [Shapely](https://shapely.readthedocs.io/) for geometric operations
+  - [PyProj](https://pyproj4.github.io/pyproj/stable/) for coordinate system transformations
+  - [Folium](https://python-visualization.github.io/folium/) for interactive maps visualization
+
+- **Machine Learning**: 
+  - [Scikit-learn](https://scikit-learn.org/) for flood prediction models
+  - [Joblib](https://joblib.readthedocs.io/) for model serialization
+
+- **Optimization**: 
+  - [Google OR-Tools](https://developers.google.com/optimization) for route optimization algorithms
+
+- **Visualization**: 
+  - [Matplotlib](https://matplotlib.org/) and [Seaborn](https://seaborn.pydata.org/) for data plotting
+  - [Folium](https://python-visualization.github.io/folium/) for interactive maps
+
+- **API Integration**:
+  - [Requests](https://requests.readthedocs.io/) for external API calls
+  - [python-dotenv](https://github.com/theskumar/python-dotenv) for environment variable management
+
+- **Reporting & Export**:
+  - [XlsxWriter](https://xlsxwriter.readthedocs.io/) for Excel report generation
+  - [Pillow](https://python-pillow.org/) for image processing
 
 ## Project Structure
 
@@ -30,6 +56,9 @@ FloodAid-Predictor/
 ├── app.py                 # Main Streamlit application
 ├── config/                # Configuration files and parameters
 ├── components/            # UI components for the dashboard
+│   ├── map_component.py   # Interactive map visualization
+│   ├── dashboard_component.py # Main dashboard UI
+│   └── analytics_component.py # Analytics and reporting
 ├── data/                  # Data storage
 ├── models/                # ML models for prediction and optimization
 │   ├── flood_prediction.py         # Flood risk prediction model
@@ -37,6 +66,7 @@ FloodAid-Predictor/
 ├── utils/                 # Utility functions
 │   ├── geo_utils.py       # Geospatial calculations and mapping
 │   ├── weather_api.py     # Weather data retrieval
+│   ├── csv_data_manager.py # CSV data management
 │   └── database.py        # Database interactions
 └── requirements.txt       # Dependencies
 ```
@@ -87,6 +117,33 @@ FloodAid-Predictor/
 streamlit run app.py
 ```
 
+The application will be accessible at `http://localhost:8501`.
+
+## Detailed Library Requirements
+
+The application requires the following Python libraries:
+
+```
+numpy==1.24.3
+pandas==2.0.1
+scikit-learn==1.3.0
+ortools==9.6.2534
+geopandas==0.13.2
+folium==0.14.0
+streamlit==1.22.0
+matplotlib==3.7.1
+seaborn==0.12.2
+requests==2.29.0
+python-dotenv==1.0.0
+sqlite3-api==0.1.0
+pyproj==3.5.0
+shapely==2.0.1
+joblib==1.2.0
+xlsxwriter==3.1.2
+pillow==10.0.0
+streamlit-folium==0.13.0
+```
+
 ## Using Synthetic Data vs Real Data
 
 By default, the application runs in demonstration mode using synthetic weather data. This allows you to try out all features without needing any API keys.
@@ -98,17 +155,31 @@ To use real weather data:
 
 The application will automatically detect your API key and use real weather data instead of synthetic data.
 
-## Key Libraries and Dependencies
+## Key Functionality
 
-- **streamlit**: Interactive web application framework
-- **pandas** & **numpy**: Data manipulation and numerical operations
-- **geopandas** & **shapely**: Geospatial data processing
-- **folium**: Interactive map visualization
-- **scikit-learn**: Machine learning algorithms
-- **ortools**: Google's optimization tools for route planning
-- **matplotlib** & **seaborn**: Data visualization
-- **requests**: API calls for weather data
-- **python-dotenv**: Environment variable management
+### Flood Risk Prediction
+The application uses a combination of elevation data, flow accumulation calculations, and rainfall information to predict areas at high risk of flooding. The prediction model considers:
+
+- Terrain elevation
+- Water flow patterns based on topography
+- Current and forecasted rainfall intensity
+- Historical flood data (when available)
+
+### Route Optimization
+For aid delivery planning, the application uses optimization algorithms to:
+
+- Identify the shortest paths between aid centers and affected areas
+- Avoid high-risk flood zones in route planning
+- Prioritize areas based on population and severity of impact
+- Calculate estimated travel times considering route conditions
+
+### Visualization Features
+The interactive maps display:
+- Color-coded flood risk zones (low, medium, high, severe)
+- Village locations with risk indicators (red for high-risk, green for low-risk)
+- Aid center locations (green markers with hospital icon)
+- Historical flood locations (blue circles)
+- Optimized routes between aid centers and affected areas (blue lines)
 
 ## Future Improvements
 
@@ -154,46 +225,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - The project was developed as part of the "AI for Good: Humanitarian Aid Optimization" initiative
 - Special thanks to all contributors and the open-source community
-
-## Features
-
-- Flood risk prediction using weather and topographic data
-- Optimized route planning for aid delivery
-- Interactive dashboard for real-time monitoring
-- Data visualization of flood-affected areas
-
-## Project Structure
-
-- `data/`: Contains raw and processed datasets
-- `models/`: ML models for flood prediction
-- `utils/`: Utility functions for data processing and calculations
-- `components/`: Dashboard components and UI elements
-- `config/`: Configuration files for APIs and model parameters
-- `notebooks/`: Jupyter notebooks for data exploration and model development
-
-## Setup and Installation
-
-1. Clone the repository
-2. Create a virtual environment: `python -m venv venv`
-3. Activate the environment:
-   - Windows: `venv\Scripts\activate`
-   - Unix/Mac: `source venv/bin/activate`
-4. Install dependencies: `pip install -r requirements.txt`
-5. Set up environment variables in `.env` file
-
-## Running the Application
-
-```bash
-cd FloodAid
-streamlit run app.py
-```
-
-## Future Enhancements
-
-- Integration with more data sources
-- Real-time weather API integration
-- Mobile app for field workers
-- Extension to other disaster types
 
 ---
 

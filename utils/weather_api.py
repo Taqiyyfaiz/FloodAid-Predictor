@@ -12,6 +12,18 @@ def get_current_weather(lat, lon):
     """Get current weather data for a specific location."""
     base_url = "https://api.openweathermap.org/data/2.5/weather"
     
+    # Check if we have a valid API key
+    if OPENWEATHER_API_KEY == "your_api_key_here" or not OPENWEATHER_API_KEY:
+        # Return synthetic data if no API key is provided
+        return {
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "latitude": lat,
+            "longitude": lon,
+            "rainfall": 5,  # Default rainfall value for demo
+            "temperature": 25,  # Default temperature
+            "humidity": 80,  # Default humidity
+        }
+    
     params = {
         "lat": lat,
         "lon": lon,
@@ -44,13 +56,18 @@ def get_current_weather(lat, lon):
             "date": datetime.now().strftime("%Y-%m-%d"),
             "latitude": lat,
             "longitude": lon,
-            "rainfall": 0,
+            "rainfall": 5,  # Changed from 0 to provide some rainfall for demo
             "temperature": 25,
             "humidity": 80,
         }
 
 def get_forecast(lat, lon, days=5):
     """Get weather forecast for a specific location."""
+    # Check if we have a valid API key
+    if OPENWEATHER_API_KEY == "your_api_key_here" or not OPENWEATHER_API_KEY:
+        # Return synthetic data if no API key is provided
+        return generate_synthetic_forecast(lat, lon, days)
+    
     base_url = "https://api.openweathermap.org/data/2.5/forecast"
     
     params = {
@@ -89,22 +106,26 @@ def get_forecast(lat, lon, days=5):
     
     except requests.exceptions.RequestException as e:
         print(f"Error fetching weather forecast: {e}")
-        
-        # Create dummy forecast data for demo purposes
-        dummy_data = []
-        for i in range(days * 8):  # 8 forecasts per day (every 3 hours)
-            forecast_time = datetime.now() + timedelta(hours=i*3)
-            dummy_data.append({
-                "date": forecast_time.strftime("%Y-%m-%d"),
-                "time": forecast_time.strftime("%H:%M:%S"),
-                "latitude": lat,
-                "longitude": lon,
-                "rainfall": max(0, min(15, i % 24 / 2)),  # Simulated rainfall
-                "temperature": 25 + 5 * (i % 24 / 12) * (1 if i % 2 == 0 else -1),  # Simulated temperature
-                "humidity": 70 + 10 * (i % 24 / 12) * (1 if i % 2 == 0 else -1),  # Simulated humidity
-            })
-        
-        return pd.DataFrame(dummy_data)
+        return generate_synthetic_forecast(lat, lon, days)
+
+def generate_synthetic_forecast(lat, lon, days=5):
+    """Generate synthetic forecast data for demo purposes."""
+    print("Using synthetic weather forecast data")
+    # Create dummy forecast data for demo purposes
+    dummy_data = []
+    for i in range(days * 8):  # 8 forecasts per day (every 3 hours)
+        forecast_time = datetime.now() + timedelta(hours=i*3)
+        dummy_data.append({
+            "date": forecast_time.strftime("%Y-%m-%d"),
+            "time": forecast_time.strftime("%H:%M:%S"),
+            "latitude": lat,
+            "longitude": lon,
+            "rainfall": max(0, min(15, i % 24 / 2)),  # Simulated rainfall
+            "temperature": 25 + 5 * (i % 24 / 12) * (1 if i % 2 == 0 else -1),  # Simulated temperature
+            "humidity": 70 + 10 * (i % 24 / 12) * (1 if i % 2 == 0 else -1),  # Simulated humidity
+        })
+    
+    return pd.DataFrame(dummy_data)
 
 def get_historical_rainfall(lat, lon):
     """
@@ -145,6 +166,10 @@ def get_grid_weather_data(center_lat, center_lon, grid_size=5, spacing=0.02):
     Returns:
         DataFrame: Weather data for the grid points
     """
+    # Print a notification that we're using synthetic data for demo
+    if OPENWEATHER_API_KEY == "your_api_key_here" or not OPENWEATHER_API_KEY:
+        print("Using synthetic weather data for grid (no API key provided)")
+    
     grid_data = []
     
     # Calculate the starting point for the grid
@@ -161,7 +186,7 @@ def get_grid_weather_data(center_lat, center_lon, grid_size=5, spacing=0.02):
             dist_factor = ((lat - center_lat)**2 + (lon - center_lon)**2)**0.5 / spacing
             
             # Get actual weather for the center, then adjust for other points
-            if i == grid_size // 2 and j == grid_size // 2:
+            if i == grid_size // 2 and j == grid_size // 2 and OPENWEATHER_API_KEY != "your_api_key_here" and OPENWEATHER_API_KEY:
                 weather = get_current_weather(lat, lon)
             else:
                 # For demo, simulate weather variations based on distance from center

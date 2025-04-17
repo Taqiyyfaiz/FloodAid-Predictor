@@ -158,6 +158,15 @@ def sidebar():
     
     st.sidebar.markdown("---")
     
+    # Add development status notification to sidebar
+    st.sidebar.warning("""
+    **🚧 BETA VERSION 🚧**
+    
+    This tool is in active development. Features may change or have limited functionality.
+    
+    [Learn more about our roadmap](https://github.com/yourusername/FloodAid-Predictor)
+    """)
+    
     # Footer
     st.sidebar.markdown("""
     **Made with ❤️ by CODEX 2.0** &nbsp; [<img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="25">](https://github.com/codex-team/floodaid)
@@ -176,6 +185,21 @@ def main():
     
     # Create tabs for different sections
     tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🗺️ Map & Routes", "📈 Analytics"])
+    
+    # Add development status notification
+    st.info("""
+    ### 🚧 Development in Progress 🚧
+    
+    **Note:** FloodAid Predictor is currently under active development and is not a complete product. We are working on several improvements including:
+    
+    - Integration with real-time weather and flood monitoring systems
+    - Enhanced machine learning models for more accurate predictions
+    - Improved route optimization for different vehicle types
+    - Mobile compatibility for field workers
+    - Integration with actual road network data
+    
+    We welcome collaborators with expertise in machine learning, geospatial analysis, disaster management, and development. If you're interested in contributing, please visit our GitHub repository.
+    """)
     
     with tab1:
         dashboard_tab()

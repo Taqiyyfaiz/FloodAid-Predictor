@@ -355,28 +355,55 @@ def plot_routes(m, routes, aid_centers=None):
     """
     # Add routes
     for i, route in enumerate(routes):
-        line = route['geometry']
-        risk_level = route.get('risk_level', 'low')
-        
-        # Get color based on risk level
-        color = FLOOD_COLORS.get(risk_level, '#3388ff')
-        
-        # Plot the route
-        folium.GeoJson(
-            line,
-            style_function=lambda x, color=color: {
-                'color': color,
-                'weight': 4,
-                'opacity': 0.8
-            },
-            tooltip=f"Route {i+1}: {route.get('distance', 0):.2f} km"
-        ).add_to(m)
+        # Check if route has a direct geometry or if it's structured with segments
+        if 'geometry' in route:
+            # Direct geometry
+            line = route['geometry']
+            risk_level = route.get('risk_level', 'low')
+            
+            # Get color based on risk level
+            color = FLOOD_COLORS.get(risk_level, '#3388ff')
+            
+            # Plot the route
+            folium.GeoJson(
+                line,
+                style_function=lambda x, color=color: {
+                    'color': color,
+                    'weight': 4,
+                    'opacity': 0.8
+                },
+                tooltip=f"Route {i+1}: {route.get('distance', 0):.2f} km"
+            ).add_to(m)
+        elif 'segments' in route:
+            # Routes with segments
+            for j, segment in enumerate(route['segments']):
+                if 'geometry' in segment:
+                    line = segment['geometry']
+                    risk_level = segment.get('risk_level', route.get('risk_level', 'low'))
+                    
+                    # Get color based on risk level
+                    color = FLOOD_COLORS.get(risk_level, '#3388ff')
+                    
+                    # Plot the segment
+                    folium.GeoJson(
+                        line,
+                        style_function=lambda x, color=color: {
+                            'color': color,
+                            'weight': 4,
+                            'opacity': 0.8
+                        },
+                        tooltip=f"Route {i+1} Segment {j+1}: {segment.get('distance', 0):.2f} km"
+                    ).add_to(m)
     
     # Add aid centers
     if aid_centers is not None:
         for _, center in aid_centers.iterrows():
+            # Check column names in the DataFrame
+            lat_col = 'latitude' if 'latitude' in center else 'lat'
+            lon_col = 'longitude' if 'longitude' in center else 'lon'
+            
             folium.Marker(
-                location=[center['latitude'], center['longitude']],
+                location=[center[lat_col], center[lon_col]],
                 tooltip=f"Aid Center: {center['name']}<br>Capacity: {center['capacity']}",
                 icon=folium.Icon(color='green', icon='hospital', prefix='fa')
             ).add_to(m)

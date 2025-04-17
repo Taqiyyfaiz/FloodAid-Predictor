@@ -7,6 +7,11 @@ load_dotenv()
 # API keys
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "your_api_key_here")
 
+# If DEMO_MODE is set in .env, use synthetic data
+if OPENWEATHER_API_KEY == "DEMO_MODE":
+    OPENWEATHER_API_KEY = "your_api_key_here"
+    print("Using synthetic weather data (DEMO_MODE)")
+
 # Database settings
 DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "floodaid.db")
 

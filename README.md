@@ -6,6 +6,32 @@ A full-stack AI application built for "AI for Good: Humanitarian Aid Optimizatio
 
 FloodAid Predictor combines geospatial analysis, machine learning, and route optimization to help disaster response teams identify high-risk flood areas and determine the most efficient routes for delivering aid. The system generates synthetic flood risk data based on elevation, flow accumulation, and rainfall intensity, then applies optimization algorithms to plan the safest and most efficient routes to affected areas.
 
+## Prototype
+# 1
+![1 1](https://github.com/user-attachments/assets/d6b680b1-e183-45c0-a054-2aacc44f9789)
+
+# 2
+![2 1](https://github.com/user-attachments/assets/e0960151-88a2-41bc-a60f-ea1b4fba424b)
+
+# 3
+![3 1](https://github.com/user-attachments/assets/19b40b45-7481-48c3-ad63-f972aa9cd57c)
+
+# 4
+![Screenshot_2025-04-16_220426 1](https://github.com/user-attachments/assets/f9d573f7-e45a-48f2-a2ac-b48bb5c3014d)
+
+# 4
+![Screenshot_2025-04-16_220438 1](https://github.com/user-attachments/assets/f1886be4-13dd-472a-94a6-e88a5b8ff09d)
+
+# 5
+![Screenshot_2025-04-16_220455 1](https://github.com/user-attachments/assets/87a6a444-f444-44bb-9222-274e560a394f)
+
+
+
+
+
+
+
+
 ## Key Features
 
 - **Flood Risk Prediction**: Uses topographic data and rainfall information to predict areas at high risk of flooding
